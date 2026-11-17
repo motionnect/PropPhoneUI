@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#16171a">
+<title>Prop Phone</title>
+<style>
+/* Layout: director's setup list on top of a full-screen "prop mode" stage the actor holds on camera. */
+:root{--bg:#16171a;--panel:#1f2024;--line:#2e3036;--fg:#ecebe6;--mute:#9a9a94;--accent:#f2b134;--ok:#2fb36b;--bad:#e5484d;
+--ui:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color-scheme:dark}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:15px/1.4 var(--ui)}
+body{padding:max(14px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-left)) 28px max(16px,env(safe-area-inset-left));overflow-x:hidden}
+body.staged{overflow:hidden;padding:0}
+h1{font-size:22px;margin:6px 0 2px;letter-spacing:.02em}
+.sub{color:var(--mute);margin:0 0 18px;font-size:13px}
+.grid{display:grid;gap:10px;max-width:560px}
+.card{display:flex;gap:14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:left;color:var(--fg);font:inherit;width:100%;cursor:pointer}
+.card b{display:block;font-size:16px}.card span{color:var(--mute);font-size:13px}
+.card i{flex:none;width:44px;height:44px;border-radius:10px;background:var(--accent);color:#1a1405;display:grid;place-items:center;font:700 18px var(--ui);font-style:normal}
+.panel{max-width:560px}
+.panel h2{font-size:19px;margin:6px 0 4px}
+.back{background:none;border:0;color:var(--accent);font:inherit;padding:8px 0;cursor:pointer}
+label{display:block;margin:12px 0 4px;font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:.08em}
+input[type=text],input[type=number],textarea,select{width:100%;background:#121316;border:1px solid var(--line);border-radius:10px;color:var(--fg);padding:11px;font:inherit}
+textarea{min-height:150px;resize:vertical;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+input[type=file]{width:100%;color:var(--mute);font-size:13px}
+.fs{font-size:12px;color:var(--ok);margin-left:6px;text-transform:none;letter-spacing:0}
+.row{display:flex;gap:10px}.row>*{flex:1;min-width:0}
+.chk{display:flex;gap:10px;align-items:center;margin:14px 0 0;color:var(--fg);text-transform:none;letter-spacing:0;font-size:15px}
+.chk input{width:20px;height:20px;accent-color:var(--accent)}
+.start{margin-top:20px;width:100%;padding:15px;border:0;border-radius:12px;background:var(--accent);color:#1a1405;font:700 16px var(--ui);cursor:pointer}
+.hint{font-size:12.5px;color:var(--mute);margin:6px 0 0}
+.hint code{color:var(--fg)}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+input[type=color]{width:100%;height:44px;border:1px solid var(--line);border-radius:10px;background:#121316;padding:4px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.chips span{display:flex;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 8px 6px 6px;font-size:13px}
+.chips img{width:30px;height:30px;border-radius:8px;object-fit:cover}
+.chips button{background:none;border:0;color:var(--mute);font-size:16px;padding:2px 6px;cursor:pointer}
+
+
+/* ===== Stage (prop mode) ===== */
+#stage{position:fixed;inset:0;background:#000;z-index:100;overflow:hidden;font-family:var(--ui);color:#fff;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.exit{position:absolute;top:0;left:0;width:70px;height:70px;z-index:500}
+.sbar{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;padding:max(10px,env(safe-area-inset-top)) 22px 0;font-size:14px;font-weight:600;z-index:20;pointer-events:none}
+.sbar .ic{letter-spacing:.04em;font-size:13px}
+.av{border-radius:50%;background:#556;display:grid;place-items:center;font-weight:700;background-size:cover;background-position:center;flex:none}
+
+/* message: dark messenger look, colours come from CSS variables set per prop */
+.chat{display:flex;flex-direction:column;height:100%;background:var(--cbg);color:#f2f4fa}
+.chead{display:flex;gap:8px;align-items:center;padding:calc(max(10px,env(safe-area-inset-top)) + 28px) 10px 10px 6px;background:var(--hd)}
+.chead .bk{display:grid;place-items:center;width:32px}
+.chead .av{width:40px;height:40px;font-size:16px}
+.chead .who{flex:1;min-width:0;margin-left:4px}
+.chead b{display:block;font-size:17px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chead small{color:var(--acc);font-size:12.5px}
+.chead .ia{display:flex;gap:20px;padding-right:6px;color:#e8ebf5}
+.msgs{flex:1;overflow-y:auto;padding:10px 12px 8px;display:flex;flex-direction:column;gap:4px;background:var(--cbg) center/cover;overscroll-behavior:contain}
+.day{align-self:center;margin:6px 0 8px;padding:4px 12px;border-radius:12px;font-size:12px;background:rgba(255,255,255,.1)}
+.b{max-width:82%;padding:7px 10px 5px;border-radius:16px;font-size:16px;line-height:1.32;word-wrap:break-word;animation:pop .18s ease-out}
+.b .m{float:right;margin:7px 0 0 10px;font-size:11px;opacity:.75;display:flex;gap:3px;align-items:center;white-space:nowrap}
+.b.me{align-self:flex-end;background:var(--out);border-bottom-right-radius:4px}
+.b.them{align-self:flex-start;background:var(--in);border-bottom-left-radius:4px}
+.b.me .m svg{color:var(--acc)}
+.typing{align-self:flex-start;background:var(--in);border-radius:16px;border-bottom-left-radius:4px;padding:12px 14px;display:flex;gap:4px}
+.typing i{width:7px;height:7px;border-radius:50%;background:#aab;animation:bounce 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,60%,100%{transform:none;opacity:.5}30%{transform:translateY(-4px);opacity:1}}
+.cin{display:flex;gap:8px;align-items:center;padding:8px 8px calc(8px + env(safe-area-inset-bottom));background:var(--cbg)}
+.pill{flex:1;display:flex;align-items:center;gap:10px;background:var(--hd);border-radius:26px;padding:0 14px;min-height:48px;color:#aab3c8}
+.pill svg{flex:none}
+.pill input{flex:1;min-width:0;border:0;background:transparent;color:#fff;font:16px var(--ui);padding:12px 0;outline:0;user-select:text;-webkit-user-select:text}
+.sendb{flex:none;width:48px;height:48px;border-radius:50%;border:0;background:var(--acc);color:#07120f;display:grid;place-items:center}
+@keyframes pop{from{transform:scale(.94);opacity:0}to{transform:none;opacity:1}}
+
+/* call: drifting colour field, ringing avatar, slide to answer */
+.callbg{position:absolute;inset:0;background:#0b0f17;overflow:hidden}
+.callbg .ph{position:absolute;inset:-10%;background:center/cover;filter:blur(40px) brightness(.5) saturate(1.2)}
+.callbg .aur{position:absolute;inset:-30%;background:radial-gradient(40% 40% at 25% 30%,#4c5fd7aa,transparent 70%),radial-gradient(35% 35% at 78% 25%,#7ee0c388,transparent 70%),radial-gradient(45% 45% at 60% 80%,#d66bff77,transparent 70%);animation:drift 14s ease-in-out infinite alternate}
+@keyframes drift{from{transform:translate(-4%,-3%) rotate(0)}to{transform:translate(5%,4%) rotate(14deg)}}
+.cw{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;padding:calc(max(10px,env(safe-area-inset-top)) + 64px) 22px calc(30px + env(safe-area-inset-bottom))}
+.chip{display:flex;align-items:center;gap:8px;padding:6px 14px;border-radius:20px;background:rgba(255,255,255,.14);font-size:13px;letter-spacing:.05em}
+.chip i{width:8px;height:8px;border-radius:50%;background:#7ee0c3;animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.25}}
+.cw h2{font-size:36px;font-weight:600;margin:24px 0 4px;text-align:center;letter-spacing:-.01em}
+.cw .num{opacity:.75;font-size:17px;text-align:center}
+.cw .rg{margin-top:8px;opacity:.7;font-size:14px}
+.rg b::after{content:"";animation:dots 1.4s steps(1) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.avx{position:relative;width:164px;height:164px;margin:36px 0 0;flex:none}
+.avx .av{position:absolute;inset:6px;width:152px;height:152px;font-size:60px;z-index:2}
+.avx .ring{position:absolute;inset:0;border-radius:50%;background:conic-gradient(#7ee0c3,#4c5fd7,#d66bff,#7ee0c3);animation:spin 3.5s linear infinite;-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3px));mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3px))}
+.avx .rp{position:absolute;inset:0;border-radius:50%;border:2px solid rgba(255,255,255,.35);animation:pulse 2.4s infinite}
+.avx .rp:nth-child(2){animation-delay:.8s}.avx .rp:nth-child(3){animation-delay:1.6s}
+@keyframes pulse{from{transform:scale(1);opacity:.7}to{transform:scale(2);opacity:0}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sp{flex:1}
+.quick{display:flex;gap:12px;margin-bottom:20px}
+.quick div{padding:9px 16px;border-radius:20px;background:rgba(255,255,255,.14);font-size:14px;display:flex;gap:8px;align-items:center}
+.slide{position:relative;flex:none;width:min(100%,330px);height:72px;border-radius:36px;background:rgba(255,255,255,.14);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);touch-action:none;overflow:hidden}
+.slide .tx{position:absolute;inset:0;display:grid;place-items:center;padding-left:60px;font-size:16px;letter-spacing:.03em;background:linear-gradient(90deg,rgba(255,255,255,.35) 35%,#fff 50%,rgba(255,255,255,.35) 65%) 0 0/250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;animation:shim 2.6s linear infinite}
+@keyframes shim{from{background-position:100% 0}to{background-position:-100% 0}}
+.knob{position:absolute;left:6px;top:6px;width:60px;height:60px;border-radius:50%;background:#2fb36b;display:grid;place-items:center;touch-action:none;box-shadow:0 4px 16px rgba(47,179,107,.55);transition:transform .25s}
+.knob.drag{transition:none}
+.decl{margin-top:16px;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:13px;flex:none}
+.decl button,.endb{width:62px;height:62px;border-radius:50%;border:0;background:#e5484d;color:#fff;display:grid;place-items:center}
+.eq{display:flex;gap:5px;align-items:flex-end;height:34px;margin-top:20px}
+.eq i{width:5px;height:6px;border-radius:3px;background:#7ee0c3;animation:eq 1s ease-in-out infinite}
+.eq i:nth-child(2){animation-delay:.12s}.eq i:nth-child(3){animation-delay:.3s}.eq i:nth-child(4){animation-delay:.08s}.eq i:nth-child(5){animation-delay:.42s}.eq i:nth-child(6){animation-delay:.2s}.eq i:nth-child(7){animation-delay:.5s}
+@keyframes eq{0%,100%{height:6px}50%{height:32px}}
+.tl{display:grid;grid-template-columns:repeat(3,1fr);gap:22px 28px;margin:28px 0 30px}
+.tl button{width:68px;height:68px;border-radius:50%;border:0;background:rgba(255,255,255,.15);color:#fff;display:grid;place-items:center}
+.tl button.on{background:#fff;color:#111}
+
+/* video */
+.vid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#111}
+.self{position:absolute;right:14px;bottom:130px;width:30%;max-width:150px;aspect-ratio:3/4;border-radius:14px;object-fit:cover;transform:scaleX(-1);background:#222;border:2px solid rgba(255,255,255,.35);z-index:10;box-shadow:0 6px 20px rgba(0,0,0,.5);touch-action:none}
+.self.back{transform:none}
+.vtop{position:absolute;top:0;left:0;right:0;padding:calc(max(10px,env(safe-area-inset-top)) + 26px) 20px 30px;background:linear-gradient(rgba(0,0,0,.55),transparent);z-index:12;text-align:center;transition:opacity .3s}
+.vtop b{font-size:18px;display:block}
+.vbar{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:center;gap:22px;padding:30px 20px calc(30px + env(safe-area-inset-bottom));background:linear-gradient(transparent,rgba(0,0,0,.6));z-index:12;transition:opacity .3s}
+.vbar button{width:60px;height:60px;border-radius:50%;border:0;background:rgba(255,255,255,.2);color:#fff;font-size:22px}
+.vbar .end{background:#e5484d}
+.fade{opacity:0;pointer-events:none}
+.over{position:absolute;inset:0;z-index:30;display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;background:#0b0f17;text-align:center;padding:30px}
+
+/* lock / home / notifications */
+.wall{position:absolute;inset:0;background:linear-gradient(160deg,#27406b,#7a3f6d 55%,#e08b5a) center/cover}
+.lockc{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;padding-top:calc(max(10px,env(safe-area-inset-top)) + 80px);text-shadow:0 2px 14px rgba(0,0,0,.35)}
+.lockc .d{font-size:19px;font-weight:500}.lockc .t{font-size:92px;font-weight:300;line-height:1;margin-top:4px;letter-spacing:-.02em}
+.nlist{position:absolute;left:12px;right:12px;top:calc(max(10px,env(safe-area-inset-top)) + 260px);display:flex;flex-direction:column;gap:8px;z-index:5}
+.n{display:flex;gap:11px;align-items:flex-start;background:rgba(40,40,46,.72);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-radius:18px;padding:11px 13px;animation:drop .45s cubic-bezier(.2,.9,.3,1.2);text-shadow:none}
+.n .ai{flex:none;width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-weight:700;overflow:hidden}
+.n .ai img,.ico i img{width:100%;height:100%;object-fit:cover;display:block}
+.n .nb{min-width:0;flex:1}.n .nh{display:flex;justify-content:space-between;font-size:12px;opacity:.7;text-transform:uppercase;letter-spacing:.04em}
+.n b{display:block;font-size:15px;margin-top:2px}.n p{margin:1px 0 0;font-size:14px;opacity:.9;word-wrap:break-word}
+@keyframes drop{from{transform:translateY(-120px);opacity:0}to{transform:none;opacity:1}}
+.off{position:absolute;inset:0;background:#000;z-index:300;opacity:1;transition:opacity .45s ease}
+.off.awake{opacity:0;pointer-events:none;transition:opacity .22s ease}
+.swipe{position:absolute;bottom:calc(16px + env(safe-area-inset-bottom));left:0;right:0;text-align:center;font-size:13px;opacity:.85;touch-action:none;padding:30px 0 6px}
+.swipe::after{content:"";display:block;width:130px;height:5px;border-radius:3px;background:#fff;margin:12px auto 0}
+.pin{position:absolute;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);display:flex;flex-direction:column;align-items:center;padding-top:calc(max(10px,env(safe-area-inset-top)) + 80px);z-index:40}
+.dots{display:flex;gap:16px;margin:18px 0 34px}.dots i{width:14px;height:14px;border-radius:50%;border:2px solid #fff}.dots i.on{background:#fff}
+.keys{display:grid;grid-template-columns:repeat(3,76px);gap:16px 22px}
+.keys button{width:76px;height:76px;border-radius:50%;border:0;background:rgba(255,255,255,.18);color:#fff;font:300 32px var(--ui)}
+.shake{animation:shake .4s}@keyframes shake{25%{transform:translateX(-12px)}75%{transform:translateX(12px)}}
+.home{position:absolute;inset:0;padding:calc(max(10px,env(safe-area-inset-top)) + 60px) 18px 0}
+.hw{margin:0 4px 22px;font-size:54px;font-weight:300;text-shadow:0 2px 12px rgba(0,0,0,.35)}.hw small{display:block;font-size:15px;font-weight:500}
+.icons{display:grid;grid-template-columns:repeat(4,1fr);gap:22px 8px}
+.ico{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;text-shadow:0 1px 6px rgba(0,0,0,.6)}
+.ico i{width:58px;height:58px;border-radius:15px;display:grid;place-items:center;font:700 24px var(--ui);font-style:normal;overflow:hidden}
+.dock{position:absolute;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));background:rgba(255,255,255,.2);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-radius:28px;padding:14px 12px;display:grid;grid-template-columns:repeat(4,1fr);justify-items:center}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<main id="setup">
+<h1>Prop Phone</h1>
+<p class="sub">Fake phone screens for the camera. Set up a prop, then tap Start. To leave a prop, tap the top-left corner of the screen 3 times.</p>
+
+<div id="menu" class="grid">
+<button class="card" data-open="msg"><i>M</i><div><b>Prop message</b><span>Scripted chat. Any typing sends the mocked text.</span></div></button>
+<button class="card" data-open="call"><i>C</i><div><b>Prop call</b><span>Incoming call, swipe to answer or decline.</span></div></button>
+<button class="card" data-open="video"><i>V</i><div><b>Prop video call</b><span>Pre-recorded video plus a live camera for the actor.</span></div></button>
+<button class="card" data-open="notif"><i>N</i><div><b>Prop notifications</b><span>Timed SMS, chat and social alerts.</span></div></button>
+<button class="card" data-open="home"><i>H</i><div><b>Home and lock screen</b><span>Wallpaper, clock, fake passcode, app grid.</span></div></button>
+<button class="card" data-open="icons"><i>A</i><div><b>App icons</b><span>Add your own icon images for notifications and the home screen.</span></div></button>
+<button class="card" data-open="sys"><i>S</i><div><b>Phone details</b><span>Status bar time, battery, carrier.</span></div></button>
+</div>
+
+<!-- MESSAGE -->
+<section class="panel" id="p-msg" hidden>
+<button class="back" data-back>‹ All props</button><h2>Prop message</h2>
+<label>Contact name</label><input type="text" data-k="msg.name">
+<label>Contact photo <span class="fs"></span></label><input type="file" accept="image/*" data-f="msg.photo">
+<label>Script</label>
+<textarea data-k="msg.script" spellcheck="false"></textarea>
+<p class="hint">One message per line. <code>me:</code> is what the actor sends, <code>them:</code> is the reply. Lines before the first <code>me:</code> show as chat history. When the script runs out, the actor's real typing is sent.</p>
+<label>Chat wallpaper (optional) <span class="fs"></span></label><input type="file" accept="image/*" data-f="msg.wall">
+<div class="row">
+<div><label>Header</label><input type="color" data-k="msg.hd"></div>
+<div><label>Background</label><input type="color" data-k="msg.bg"></div>
+<div><label>Accent</label><input type="color" data-k="msg.acc"></div>
+</div>
+<div class="row">
+<div><label>Your bubbles</label><input type="color" data-k="msg.out"></div>
+<div><label>Their bubbles</label><input type="color" data-k="msg.inc"></div>
+</div>
+<label class="chk"><input type="checkbox" data-k="msg.along"> Show the scripted text as the actor types</label>
+<label>Reply speed (seconds before each reply)</label><input type="number" min="0" max="10" step="0.5" data-k="msg.delay">
+<button class="start" data-start="msg">Start message prop</button>
+</section>
+
+<!-- CALL -->
+<section class="panel" id="p-call" hidden>
+<button class="back" data-back>‹ All props</button><h2>Prop call</h2>
+<label>Caller name</label><input type="text" data-k="call.name">
+<label>Number or label</label><input type="text" data-k="call.number">
+<label>Caller photo <span class="fs"></span></label><input type="file" accept="image/*" data-f="call.photo">
+<label>Ringtone <span class="fs"></span></label><input type="file" accept="audio/*" data-f="call.ringtone">
+<p class="hint">Leave the ringtone empty to use the default ring.</p>
+<label>Seconds of black screen before it rings</label><input type="number" min="0" max="60" data-k="call.delay">
+<label class="chk"><input type="checkbox" data-k="call.vib"> Vibrate while ringing</label>
+<button class="start" data-start="call">Start call prop</button>
+</section>
+
+<!-- VIDEO -->
+<section class="panel" id="p-video" hidden>
+<button class="back" data-back>‹ All props</button><h2>Prop video call</h2>
+<label>Other person's name</label><input type="text" data-k="video.name">
+<label>Pre-recorded video <span class="fs"></span></label><input type="file" accept="video/*" data-f="video.video">
+<label class="chk"><input type="checkbox" data-k="video.loop"> Loop the video</label>
+<label class="chk"><input type="checkbox" data-k="video.cam"> Show the actor's live camera</label>
+<p class="hint">The camera asks for permission once. Tap the screen to show the controls. The flip button switches front and back camera.</p>
+<button class="start" data-start="video">Start video call prop</button>
+</section>
+
+<!-- NOTIF -->
+<section class="panel" id="p-notif" hidden>
+<button class="back" data-back>‹ All props</button><h2>Prop notifications</h2>
+<label>Notifications</label>
+<textarea data-k="notif.items" spellcheck="false"></textarea>
+<p class="hint">One per line: <code>app | title | text | seconds</code>. Seconds count from the moment you start. Built-in styles: <code>sms</code>, <code>chat</code>, <code>social</code>, <code>mail</code>, <code>calendar</code>. Any other app name gets its own colour.</p>
+<label>Screen goes dark after (seconds without a new notification)</label><input type="number" min="2" max="120" data-k="notif.sleep">
+<p class="hint">The prop starts with the screen off. Each notification wakes it. Old notifications stay on the lock screen when it wakes again.</p>
+<label class="chk"><input type="checkbox" data-k="notif.sound"> Play a sound and vibrate</label>
+<p class="hint">The lock screen wallpaper and clock come from Home and lock screen. Tap a notification to dismiss it.</p>
+<button class="start" data-start="notif">Start notification prop</button>
+</section>
+
+<!-- HOME -->
+<section class="panel" id="p-home" hidden>
+<button class="back" data-back>‹ All props</button><h2>Home and lock screen</h2>
+<label>Wallpaper <span class="fs"></span></label><input type="file" accept="image/*" data-f="home.wallpaper">
+<label>Clock text (empty uses the real time)</label><input type="text" data-k="home.time" placeholder="9:41">
+<label>Date text (empty uses today)</label><input type="text" data-k="home.date" placeholder="Tuesday, 17 November">
+<label>Passcode (4 digits, empty accepts anything)</label><input type="text" inputmode="numeric" maxlength="4" data-k="home.pin">
+<label class="chk"><input type="checkbox" data-k="home.lock"> Start on the lock screen</label>
+<label>App names on the home screen (comma separated)</label>
+<input type="text" data-k="home.apps">
+<button class="start" data-start="home">Start home screen prop</button>
+</section>
+
+<!-- ICONS -->
+<section class="panel" id="p-icons" hidden>
+<button class="back" data-back>‹ All props</button><h2>App icons</h2>
+<p class="hint">Add icon images for the apps your scene needs. Screenshot the icon on your phone, crop it square, then save it here under the app's name. Notifications and the home screen use it whenever the app name matches.</p>
+<label>App name, as written in your notifications</label><input type="text" id="ic-name" placeholder="for example: whatsapp">
+<label>Icon image <span class="fs" id="ic-fs"></span></label><input type="file" id="ic-file" accept="image/*">
+<button class="start" id="ic-add">Save icon</button>
+<div id="ic-list" class="chips"></div>
+</section>
+
+<!-- SYS -->
+<section class="panel" id="p-sys" hidden>
+<button class="back" data-back>‹ All props</button><h2>Phone details</h2>
+<p class="hint">Used by every prop.</p>
+<label>Status bar time (empty uses the real time)</label><input type="text" data-k="sys.time" placeholder="9:41">
+<div class="row"><div><label>Battery %</label><input type="number" min="1" max="100" data-k="sys.battery"></div>
+<div><label>Network</label><input type="text" data-k="sys.net"></div></div>
+</section>
+</main>
+
+<div id="stage" hidden></div>
+
+<script>
+"use strict";
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const el=(tag,cls,html)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e};
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+/* ---------- state + storage (IndexedDB keeps photos, audio and video on the phone) ---------- */
+const DEFAULTS={
+ icons:{},
+ sys:{time:"",battery:84,net:"5G"},
+ msg:{name:"Maya",photo:null,wall:null,hd:"#151a25",bg:"#0e1118",out:"#4c5fd7",inc:"#1c2230",acc:"#7ee0c3",along:true,delay:1.5,
+  script:"them: Are you still coming tonight?\nme: Yes, leaving in ten minutes\nthem: Good. Don't tell anyone where you're going\nthem: I mean it\nme: I won't. See you soon.\nthem: Come to the back door"},
+ call:{name:"Maya",number:"mobile +91 98765 43210",photo:null,ringtone:null,delay:2,vib:true},
+ video:{name:"Maya",video:null,loop:false,cam:true},
+ notif:{sound:true,sleep:8,items:"sms | Maya | Where are you?? | 3\nchat | Maya | 3 new messages | 8\nsocial | Social | Maya tagged you in a photo | 14\nmail | Mail | Your booking is confirmed | 20"},
+ home:{wallpaper:null,time:"",date:"",pin:"",lock:true,apps:"Phone,Messages,Camera,Photos,Maps,Music,Notes,Clock,Mail,Chat,Social,Wallet"}
+};
+let S=JSON.parse(JSON.stringify(DEFAULTS));
+const idb=new Promise((res,rej)=>{try{const r=indexedDB.open("propphone",1);r.onupgradeneeded=()=>r.result.createObjectStore("kv");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}});
+async function load(){try{const d=await idb;const v=await new Promise(r=>{const q=d.transaction("kv").objectStore("kv").get("state");q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)});
+ if(v)for(const k in S)Object.assign(S[k],v[k]||{})}catch(e){}}
+let saveT;function save(){clearTimeout(saveT);saveT=setTimeout(async()=>{try{const d=await idb;d.transaction("kv","readwrite").objectStore("kv").put(S,"state")}catch(e){}},300)}
+const urls=new WeakMap();const url=b=>{if(!b)return"";if(!urls.has(b))urls.set(b,URL.createObjectURL(b));return urls.get(b)};
+const get=p=>p.split(".").reduce((o,k)=>o&&o[k],S);
+const set=(p,v)=>{const a=p.split(".");const k=a.pop();a.reduce((o,x)=>o[x],S)[k]=v;save()};
+
+/* ---------- shared helpers ---------- */
+let cleanup=[];
+const later=(fn,ms)=>{const t=setTimeout(fn,ms);cleanup.push(()=>clearTimeout(t));return t};
+let actx;function tone(f,t,d,v=.15,type="sine"){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();const n=actx.currentTime+t,o=actx.createOscillator(),g=actx.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(v,n);g.gain.exponentialRampToValueAtTime(.001,n+d);o.connect(g);g.connect(actx.destination);o.start(n);o.stop(n+d+.05)}catch(e){}}
+const blip=()=>{tone(1046,0,.12,.12);tone(1318,.1,.18,.12)};
+const buzz=p=>{try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}};
+const clockStr=(over)=>over||new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+const bigClock=o=>o||new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit",hour12:false}).replace(/^0(\d)/,"$1");
+const initial=n=>(String(n||"?").trim()[0]||"?").toUpperCase();
+function avatar(cls,name,photo){const a=el("div","av "+cls);if(photo)a.style.backgroundImage=`url(${url(photo)})`;else a.textContent=initial(name);return a}
+
+const ICON={
+ back:'<path d="M15 5l-7 7 7 7"/>',
+ video:'<rect x="3" y="6" width="12" height="12" rx="3"/><path d="M15 10l6-3v10l-6-3"/>',
+ phone:'<path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A15 15 0 013 6a2 2 0 012-2z"/>',
+ more:'<circle cx="12" cy="5" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="12" cy="19" r="1.2"/>',
+ smile:'<circle cx="12" cy="12" r="9"/><path d="M8 14a5 5 0 008 0M9 9.5h.01M15 9.5h.01"/>',
+ clip:'<path d="M20 11l-8 8a5 5 0 01-7-7l8-8a3.5 3.5 0 015 5l-8 8a2 2 0 01-3-3l7-7"/>',
+ cam:'<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+ mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/>',
+ send:'<path d="M4 12l16-8-6 16-3-6z"/>',
+ chat:'<path d="M4 5h16v11H9l-5 4z"/>',
+ chat2:'<path d="M3 4h12v8H8l-3 3v-3H3z"/><path d="M18 9h3v8h-2v3l-3-3H9v-2"/>',
+ clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+ grid:'<circle cx="6" cy="6" r="1.3"/><circle cx="12" cy="6" r="1.3"/><circle cx="18" cy="6" r="1.3"/><circle cx="6" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18" cy="12" r="1.3"/><circle cx="6" cy="18" r="1.3"/><circle cx="12" cy="18" r="1.3"/><circle cx="18" cy="18" r="1.3"/>',
+ speaker:'<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 010 6M18.5 6.5a8 8 0 010 11"/>',
+ mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+ cal:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
+ heart:'<path d="M12 20s-7-4.5-7-10a4 4 0 017-2 4 4 0 017 2c0 5.5-7 10-7 10z"/>'};
+ICON.end='<g transform="rotate(135 12 12)">'+ICON.phone+'</g>';
+const svg=(n,sz=22)=>`<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[n]}</svg>`;
+
+function openStage(){
+ const st=$("#stage");st.innerHTML="";st.hidden=false;document.body.classList.add("staged");
+ const vv=window.visualViewport;
+ if(vv){const f=()=>{st.style.height=vv.height+"px";st.style.top=vv.offsetTop+"px";window.__onVV&&window.__onVV()};
+  vv.addEventListener("resize",f);vv.addEventListener("scroll",f);f();
+  cleanup.push(()=>{vv.removeEventListener("resize",f);vv.removeEventListener("scroll",f);st.style.height="";st.style.top=""})}
+ try{navigator.wakeLock&&navigator.wakeLock.request("screen").then(w=>cleanup.push(()=>w.release())).catch(()=>{})}catch(e){}
+ const ex=el("div","exit");let taps=[];
+ ex.addEventListener("click",()=>{const n=Date.now();taps=taps.filter(t=>n-t<1500);taps.push(n);if(taps.length>=3)closeStage()});
+ st.append(ex);return st}
+function closeStage(){
+ cleanup.splice(0).forEach(f=>{try{f()}catch(e){}});stopRing();
+ const st=$("#stage");st.hidden=true;st.innerHTML="";document.body.classList.remove("staged");
+ try{document.fullscreenElement&&document.exitFullscreen()}catch(e){}}
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#stage").hidden)closeStage()});
+function statusBar(st,dark){
+ const s=el("div","sbar",`<span class="tm"></span><span class="ic">${esc(S.sys.net)} ▂▄▆ ${esc(S.sys.battery)}%</span>`);st.append(s);
+ const up=()=>{$(".tm",s).textContent=clockStr(S.sys.time)};up();const i=setInterval(up,10000);cleanup.push(()=>clearInterval(i));return s}
+
+/* ================= PROP MESSAGE ================= */
+function parseScript(txt){
+ const out=[];for(const raw of String(txt).split("\n")){const m=raw.match(/^\s*(me|them)\s*:\s*(.*)$/i);if(m&&m[2].trim())out.push({who:m[1].toLowerCase(),text:m[2].trim()})}return out}
+const TICKS='<svg viewBox="0 0 18 12" width="16" height="11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 6.5l3.5 3.5L11 2M7 9.5l1 1L16 2"/></svg>';
+function startMsg(){
+ const m=S.msg,items=parseScript(m.script),st=openStage();
+ const root=el("div","chat");root.style.cssText=`--hd:${m.hd};--cbg:${m.bg};--out:${m.out};--in:${m.inc};--acc:${m.acc}`;
+ statusBar(st);
+ const head=el("div","chead");head.append(el("div","bk",svg("back",26)),avatar("",m.name,m.photo));
+ head.append(el("div","who",`<b>${esc(m.name)}</b><small class="stat">online</small>`),el("div","ia",svg("video",24)+svg("phone",21)+svg("more",22)));
+ const box=el("div","msgs");if(m.wall)box.style.backgroundImage=`url(${url(m.wall)})`;box.append(el("div","day","Today"));
+ const bar=el("div","cin"),pill=el("div","pill",svg("smile",24));
+ const inp=el("input");inp.type="text";inp.placeholder="Message";
+ for(const [k,v] of [["autocomplete","off"],["autocorrect","off"],["autocapitalize","off"],["spellcheck","false"],["enterkeyhint","send"]])inp.setAttribute(k,v);
+ pill.append(inp);pill.insertAdjacentHTML("beforeend",svg("clip",22)+svg("cam",22));
+ const send=el("button","sendb",svg("mic",24));send.setAttribute("aria-label","Send");
+ bar.append(pill,send);root.append(head,box,bar);st.append(root);
+ const stat=$(".stat",head);
+ const scroll=()=>{box.scrollTop=box.scrollHeight};
+ const add=(who,text)=>{box.append(el("div","b "+who,`<span>${esc(text)}</span><span class="m">${clockStr(S.sys.time)}${who==="me"?TICKS:""}</span>`));scroll()};
+ const mode=()=>{send.innerHTML=svg(inp.value?"send":"mic",24)};
+ window.__onVV=scroll;
+ let i=0;while(i<items.length&&items[i].who==="them"){add("them",items[i].text);i++}
+ let busy=false,n=0,shown="";
+ const nextMe=()=>{for(let k=i;k<items.length;k++)if(items[k].who==="me")return k;return -1};
+ /* type-along: whatever keys are pressed, the field shows the next scripted letters */
+ inp.addEventListener("input",()=>{
+  const k=nextMe();if(m.along&&k>=0&&!busy){
+   n=Math.max(0,n+(inp.value.length-shown.length));const target=items[k].text;n=Math.min(n,target.length);
+   shown=target.slice(0,n);inp.value=shown;try{inp.setSelectionRange(n,n)}catch(e){}}
+  else shown=inp.value;mode()});
+ async function doSend(){
+  if(busy)return;const k=nextMe();let text;
+  if(k>=0){text=items[k].text;i=k+1}else{text=inp.value.trim();if(!text)return}
+  busy=true;inp.value="";n=0;shown="";mode();add("me",text);
+  while(i<items.length&&items[i].who==="them"){
+   stat.textContent="typing…";const ty=el("div","typing","<i></i><i></i><i></i>");box.append(ty);scroll();
+   const t=items[i].text;await sleep(Math.max(700,m.delay*1000+Math.min(t.length*30,1500)));
+   ty.remove();if($("#stage").hidden)return;add("them",t);blip();buzz(60);stat.textContent="online";i++}
+  busy=false}
+ send.addEventListener("pointerdown",e=>e.preventDefault());
+ send.addEventListener("click",doSend);
+ inp.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();doSend()}});
+ cleanup.push(()=>{window.__onVV=null});
+}
+
+/* ================= PROP CALL ================= */
+let ringTimer=0,vibTimer=0,ringAudio=null;
+function startRing(c){
+ if(c.ringtone){ringAudio=new Audio(url(c.ringtone));ringAudio.loop=true;ringAudio.play().catch(()=>{})}
+ else{const b=()=>{[0,.55,1.1,1.65].forEach(t=>{tone(880,t,.3,.18);tone(660,t+.14,.3,.18)})};b();ringTimer=setInterval(b,3500)}
+ if(c.vib){const v=()=>buzz([700,300,700]);v();vibTimer=setInterval(v,3500)}}
+function stopRing(){clearInterval(ringTimer);clearInterval(vibTimer);ringTimer=vibTimer=0;if(ringAudio){ringAudio.pause();ringAudio=null}buzz(0)}
+function callBg(c){const b=el("div","callbg");if(c.photo){const p=el("div","ph");p.style.backgroundImage=`url(${url(c.photo)})`;b.append(p)}b.append(el("div","aur"));return b}
+function endScreen(root,c,text){root.innerHTML="";root.append(callBg(c),el("div","cw",`<div class="sp"></div><div class="chip">${esc(text)}</div><div class="sp"></div>`));later(()=>{root.innerHTML=""},1800)}
+function startCall(){
+ const c=S.call,st=openStage();st.style.background="#000";
+ later(()=>{
+  stopRing();const root=el("div");
+  const w=el("div","cw",`<div class="chip"><i></i>Incoming call</div><div class="avx"><span class="rp"></span><span class="rp"></span><span class="rp"></span><span class="ring"></span></div><h2>${esc(c.name)}</h2><div class="num">${esc(c.number)}</div><div class="rg">ringing<b></b></div><div class="sp"></div><div class="quick"><div>${svg("chat",18)}Message</div><div>${svg("clock",18)}Remind me</div></div><div class="slide"><div class="tx">slide to answer</div><div class="knob">${svg("phone",28)}</div></div><div class="decl"><button aria-label="Decline">${svg("end",28)}</button>Decline</div>`);
+  $(".avx",w).append(avatar("",c.name,c.photo));
+  root.append(callBg(c),w);st.append(root);statusBar(st);
+  const sl=$(".slide",w),kn=$(".knob",w),tx=$(".tx",w);let x0=null,max=0;
+  const reset=()=>{x0=null;kn.classList.remove("drag");kn.style.transform="";tx.style.opacity=1};
+  kn.addEventListener("pointerdown",e=>{x0=e.clientX;max=sl.clientWidth-kn.offsetWidth-12;kn.classList.add("drag");kn.setPointerCapture(e.pointerId)});
+  kn.addEventListener("pointermove",e=>{if(x0==null)return;const dx=Math.max(0,Math.min(max,e.clientX-x0));kn.style.transform=`translateX(${dx}px)`;tx.style.opacity=String(Math.max(0,1-dx/max*1.3))});
+  kn.addEventListener("pointerup",e=>{if(x0==null)return;const dx=e.clientX-x0;if(dx>max*.8){x0=null;kn.classList.remove("drag");kn.style.transform=`translateX(${max}px)`;stopRing();later(()=>inCall(root,c),180)}else reset()});
+  kn.addEventListener("pointercancel",reset);
+  $(".decl button",w).addEventListener("click",()=>{stopRing();endScreen(root,c,"Call declined")});
+  startRing(c)},Math.max(0,c.delay)*1000)}
+function inCall(root,c){
+ const w=el("div","cw",`<div class="chip"><i></i>Connected</div><div class="avx"></div><h2>${esc(c.name)}</h2><div class="num t">00:00</div><div class="eq"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="sp"></div><div class="tl"><button aria-label="Mute">${svg("mic",26)}</button><button aria-label="Keypad">${svg("grid",26)}</button><button aria-label="Speaker">${svg("speaker",26)}</button></div><button class="endb" aria-label="End call">${svg("end",30)}</button>`);
+ $(".avx",w).append(avatar("",c.name,c.photo));
+ root.innerHTML="";root.append(callBg(c),w);let s=0;const t=$(".t",w);
+ const i=setInterval(()=>{s++;t.textContent=String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0")},1000);cleanup.push(()=>clearInterval(i));
+ $$(".tl button",w).forEach(b=>b.addEventListener("click",()=>b.classList.toggle("on")));
+ $(".endb",w).addEventListener("click",()=>{clearInterval(i);endScreen(root,c,"Call ended")})}
+
+/* ================= PROP VIDEO CALL ================= */
+async function startVideo(){
+ const v=S.video,st=openStage();const root=el("div");st.append(root);
+ const vid=el("video","vid");vid.playsInline=true;vid.setAttribute("playsinline","");vid.loop=!!v.loop;
+ if(v.video)vid.src=url(v.video);
+ const top=el("div","vtop",`<b>${esc(v.name)}</b><span class="t">Connecting…</span>`);
+ const bar=el("div","vbar",`<button data-a="mute" aria-label="Mute">🎙</button><button data-a="flip" aria-label="Flip camera">⟲</button><button class="end" data-a="end" aria-label="End call">✆</button>`);
+ root.append(vid,top,bar);
+ const ov=el("div","over",`<div class="avbig" style="margin:0"></div><h2 style="margin:10px 0 0;font-weight:500">${esc(v.name)}</h2><div style="opacity:.7">Video calling…</div>`);
+ $(".avbig",ov).append(avatar("",v.name,null));root.append(ov);
+ let self=null,stream=null,facing="user";
+ const hint=msg=>{const h=el("div","over",`<div style="opacity:.8;max-width:280px">${msg}</div>`);h.style.cssText="position:absolute;right:14px;bottom:130px;inset:auto 14px 130px auto;width:30%;max-width:150px;aspect-ratio:3/4;border-radius:14px;font-size:11px;padding:8px;background:#222";root.append(h)};
+ async function cam(){
+  if(!v.cam)return;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){hint("Camera not available here. Open the file in Chrome.");return}
+  try{if(stream)stream.getTracks().forEach(t=>t.stop());
+   stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing},audio:false});
+   if(!self){self=el("video","self");self.muted=true;self.playsInline=true;self.setAttribute("playsinline","");root.append(self);
+    let d=null;self.addEventListener("pointerdown",e=>{d={x:e.clientX,y:e.clientY};self.setPointerCapture(e.pointerId)});
+    self.addEventListener("pointermove",e=>{if(!d)return;const r=self.getBoundingClientRect();self.style.right="auto";self.style.bottom="auto";self.style.left=Math.max(0,Math.min(innerWidth-r.width,r.left+e.clientX-d.x))+"px";self.style.top=Math.max(0,Math.min(innerHeight-r.height,r.top+e.clientY-d.y))+"px";d={x:e.clientX,y:e.clientY}});
+    self.addEventListener("pointerup",()=>{d=null})}
+   self.classList.toggle("back",facing!=="user");self.srcObject=stream;await self.play().catch(()=>{})}
+  catch(e){hint("Camera blocked. Allow camera access for this page.")}}
+ cleanup.push(()=>{if(stream)stream.getTracks().forEach(t=>t.stop())});
+ later(async()=>{ov.remove();cam();
+  if(!v.video){const p=el("div","over",`<div style="opacity:.8">No video added.<br>Add one in the setup screen.</div>`);root.append(p);return}
+  try{await vid.play()}catch(e){const b=el("button","start","Tap to play");b.style.cssText="position:absolute;left:20%;right:20%;top:45%;z-index:25";b.onclick=()=>{vid.play();b.remove()};root.append(b)}
+  const t=$(".t",top);let s=0;const i=setInterval(()=>{s++;t.textContent=String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0")},1000);cleanup.push(()=>clearInterval(i));
+  vid.addEventListener("ended",()=>{if(!v.loop){clearInterval(i);const e=el("div","over",`<div>Call ended</div>`);root.append(e)}});
+  hide()},2200);
+ let hT;const show=()=>{top.classList.remove("fade");bar.classList.remove("fade");clearTimeout(hT);hT=setTimeout(hide,3500)};
+ function hide(){top.classList.add("fade");bar.classList.add("fade")}
+ cleanup.push(()=>clearTimeout(hT));
+ vid.addEventListener("click",show);
+ bar.addEventListener("click",e=>{const a=e.target.closest("button");if(!a)return;show();const k=a.dataset.a;
+  if(k==="mute"){vid.muted=!vid.muted;a.textContent=vid.muted?"🔇":"🎙"}
+  if(k==="flip"){facing=facing==="user"?"environment":"user";cam()}
+  if(k==="end"){vid.pause();root.append(el("div","over","<div>Call ended</div>"))}});
+}
+
+/* ================= PROP NOTIFICATIONS ================= */
+const APPS={sms:["Messages","#2f80ed","chat"],chat:["Chat","#1fb58f","chat2"],social:["Social","#d6409f","heart"],mail:["Mail","#e5484d","mail"],calendar:["Calendar","#f5a524","cal"]};
+function appInfo(app){const k=app.toLowerCase().trim(),b=APPS[k];let color=b?b[1]:null;
+ if(!color){let h=0;for(const c of app)h=(h*31+c.charCodeAt(0))%360;color=`hsl(${h} 60% 45%)`}
+ return{label:b?b[0]:app.trim(),color,glyph:b?b[2]:null,blob:S.icons[k]||null}}
+const tile=a=>a.blob?`<img src="${url(a.blob)}" alt="">`:(a.glyph?svg(a.glyph,a.big?30:20):esc(initial(a.label)));
+const tileBg=a=>a.blob?"transparent":a.color;
+function lockScreen(st){
+ const w=el("div","wall");if(S.home.wallpaper)w.style.backgroundImage=`url(${url(S.home.wallpaper)})`;
+ const d=new Date(),ds=S.home.date||d.toLocaleDateString([],{weekday:"long",day:"numeric",month:"long"});
+ const c=el("div","lockc",`<div class="d">${esc(ds)}</div><div class="t"></div>`);
+ st.append(w,c);const t=$(".t",c);const up=()=>{t.textContent=bigClock(S.home.time||S.sys.time)};up();const i=setInterval(up,10000);cleanup.push(()=>clearInterval(i));
+ return c}
+function startNotif(){
+ const st=openStage();lockScreen(st);statusBar(st);
+ const list=el("div","nlist");st.append(list);
+ const off=el("div","off");st.append(off);
+ const sleepMs=Math.max(2,parseFloat(S.notif.sleep)||8)*1000;
+ let awake=false,sleepT=0;
+ const arm=()=>{clearTimeout(sleepT);sleepT=setTimeout(()=>{awake=false;off.classList.remove("awake")},sleepMs)};
+ cleanup.push(()=>clearTimeout(sleepT));
+ const wake=()=>{const was=awake;awake=true;off.classList.add("awake");arm();return was};
+ off.addEventListener("click",wake);
+ const rows=String(S.notif.items).split("\n").map(l=>l.split("|").map(x=>x.trim())).filter(r=>r.length>=3&&r[0]);
+ rows.forEach(r=>{const [app,title,body,sec]=r;later(()=>{
+  const ai=appInfo(app);
+  const n=el("div","n",`<div class="ai" style="background:${tileBg(ai)}">${tile(ai)}</div><div class="nb"><div class="nh"><span>${esc(ai.label)}</span><span>now</span></div><b>${esc(title)}</b><p>${esc(body)}</p></div>`);
+  n.addEventListener("click",()=>{arm();n.style.transition="opacity .25s, transform .25s";n.style.opacity=0;n.style.transform="translateX(60px)";setTimeout(()=>n.remove(),250)});
+  const was=wake();
+  const drop=()=>{list.prepend(n);if(S.notif.sound){blip();buzz([120,60,120])}};
+  if(was)drop();else later(drop,380)},Math.max(0,parseFloat(sec)||0)*1000)})}
+
+/* ================= HOME + LOCK ================= */
+function startHome(){
+ const st=openStage();const h=S.home;let locked=!!h.lock;
+ const layer=el("div");st.append(layer);
+ const draw=()=>{layer.innerHTML="";locked?drawLock():drawHome()};
+ function drawLock(){
+  const w=el("div","wall");if(h.wallpaper)w.style.backgroundImage=`url(${url(h.wallpaper)})`;
+  const d=new Date(),ds=h.date||d.toLocaleDateString([],{weekday:"long",day:"numeric",month:"long"});
+  const c=el("div","lockc",`<div class="d">${esc(ds)}</div><div class="t">${esc(bigClock(h.time||S.sys.time))}</div>`);
+  const sw=el("div","swipe","Swipe up to unlock");layer.append(w,c,sw);
+  let y0=null;sw.addEventListener("pointerdown",e=>{y0=e.clientY;sw.setPointerCapture(e.pointerId)});
+  sw.addEventListener("pointermove",e=>{if(y0!=null)sw.style.transform=`translateY(${Math.min(0,e.clientY-y0)}px)`});
+  sw.addEventListener("pointerup",e=>{const dy=e.clientY-y0;y0=null;sw.style.transform="";if(dy<-90)pin()});
+  sw.addEventListener("pointercancel",()=>{y0=null;sw.style.transform=""});
+  statusBar(layer)}
+ function pin(){
+  const p=el("div","pin",`<div style="font-size:18px">Enter passcode</div><div class="dots"><i></i><i></i><i></i><i></i></div><div class="keys"></div>`);
+  const keys=$(".keys",p);let code="";
+  ["1","2","3","4","5","6","7","8","9","","0","⌫"].forEach(k=>{const b=el("button","",k);if(!k)b.style.visibility="hidden";
+   b.addEventListener("click",()=>{
+    if(k==="⌫")code=code.slice(0,-1);else if(k&&code.length<4)code+=k;
+    $$(".dots i",p).forEach((d,i)=>d.classList.toggle("on",i<code.length));
+    if(code.length===4){setTimeout(()=>{if(!h.pin||h.pin===code){locked=false;draw()}else{const ds=$(".dots",p);ds.classList.add("shake");setTimeout(()=>{ds.classList.remove("shake");code="";$$(".dots i",p).forEach(d=>d.classList.remove("on"))},420)}},160)}});
+   keys.append(b)});
+  const cancel=el("button","back","Cancel");cancel.style.cssText="margin-top:24px;color:#fff";cancel.onclick=()=>p.remove();p.append(cancel);layer.append(p)}
+ function drawHome(){
+  const w=el("div","wall");if(h.wallpaper)w.style.backgroundImage=`url(${url(h.wallpaper)})`;
+  const d=new Date(),ds=h.date||d.toLocaleDateString([],{weekday:"long",day:"numeric",month:"long"});
+  const home=el("div","home",`<div class="hw"><small>${esc(ds)}</small>${esc(bigClock(h.time||S.sys.time))}</div><div class="icons"></div>`);
+  const apps=String(h.apps).split(",").map(a=>a.trim()).filter(Boolean).slice(0,16);
+  const grid=$(".icons",home);
+  apps.forEach(a=>{const ai=appInfo(a);ai.big=1;const i=el("div","ico",`<i style="background:${tileBg(ai)}">${tile(ai)}</i><span>${esc(a)}</span>`);
+   i.addEventListener("click",()=>{i.animate([{transform:"scale(1)"},{transform:"scale(.88)"},{transform:"scale(1)"}],{duration:200})});grid.append(i)});
+  const dock=el("div","dock");apps.slice(0,4).forEach(a=>{const ai=appInfo(a);ai.big=1;dock.append(el("div","ico",`<i style="background:${tileBg(ai)}">${tile(ai)}</i>`))});
+  const lk=el("div","swipe","");lk.style.cssText="bottom:0;padding:18px 0 4px;opacity:0";
+  layer.append(w,home,dock);statusBar(layer);
+  /* swipe down from the top edge to lock again */
+  let y0=null;const top=el("div");top.style.cssText="position:absolute;top:0;left:0;right:0;height:60px;z-index:30;touch-action:none";layer.append(top);
+  top.addEventListener("pointerdown",e=>{y0=e.clientY;top.setPointerCapture(e.pointerId)});
+  top.addEventListener("pointerup",e=>{if(y0!=null&&e.clientY-y0>70){locked=true;draw()}y0=null})}
+ draw()}
+
+/* ================= SETUP SCREEN ================= */
+const PROPS={msg:startMsg,call:startCall,video:startVideo,notif:startNotif,home:startHome};
+function show(id){$("#menu").hidden=!!id;$$(".panel").forEach(p=>p.hidden=p.id!=="p-"+id);scrollTo(0,0)}
+function fileLabel(inp){const b=get(inp.dataset.f);const s=inp.previousElementSibling&&inp.previousElementSibling.querySelector?inp.previousElementSibling.querySelector(".fs"):null;if(s)s.textContent=b?"✓ "+(b.name||"added"):""}
+function bind(){
+ $$("[data-open]").forEach(b=>b.addEventListener("click",()=>show(b.dataset.open)));
+ $$("[data-back]").forEach(b=>b.addEventListener("click",()=>show("")));
+ $$("[data-start]").forEach(b=>b.addEventListener("click",()=>{show("");PROPS[b.dataset.start]()}));
+ $$("[data-k]").forEach(i=>{const v=get(i.dataset.k);
+  if(i.type==="checkbox"){i.checked=!!v;i.addEventListener("change",()=>set(i.dataset.k,i.checked))}
+  else{i.value=v??"";i.addEventListener("input",()=>set(i.dataset.k,i.type==="number"?(parseFloat(i.value)||0):i.value))}});
+ $$("[data-f]").forEach(i=>{fileLabel(i);i.addEventListener("change",()=>{const f=i.files&&i.files[0];if(f){set(i.dataset.f,f);fileLabel(i)}})});
+}
+function renderIcons(){
+ const box=$("#ic-list");box.innerHTML="";
+ Object.keys(S.icons).forEach(k=>{const c=el("span","",`<img src="${url(S.icons[k])}" alt=""><b style="font-weight:500">${esc(k)}</b>`);
+  const x=el("button","","×");x.setAttribute("aria-label","Remove "+k);x.onclick=()=>{delete S.icons[k];save();renderIcons()};c.append(x);box.append(c)})}
+function bindIcons(){
+ const f=$("#ic-file"),fs=$("#ic-fs");f.addEventListener("change",()=>{fs.textContent=f.files[0]?"✓ "+f.files[0].name:""});
+ $("#ic-add").addEventListener("click",()=>{const n=$("#ic-name").value.trim().toLowerCase();if(!n||!f.files[0]){fs.textContent="Add a name and an image first";return}
+  S.icons[n]=f.files[0];save();$("#ic-name").value="";f.value="";fs.textContent="";renderIcons()});
+ renderIcons()}
+if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0)navigator.serviceWorker.register("sw.js").catch(()=>{});
+load().then(()=>{bind();bindIcons()}).catch(()=>{bind();bindIcons()});
+</script>
+</body>
+</html>
